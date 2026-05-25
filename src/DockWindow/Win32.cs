@@ -112,9 +112,15 @@ internal static class Win32
         return true;
     }
 
+    public static readonly IntPtr HWND_TOP = IntPtr.Zero;
+
     public static bool MoveWindowAsync(IntPtr hwnd, Rect r) =>
         SetWindowPos(hwnd, IntPtr.Zero, r.X, r.Y, r.Width, r.Height,
             SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
+
+    public static bool MoveWindowToTopAsync(IntPtr hwnd, Rect r) =>
+        SetWindowPos(hwnd, HWND_TOP, r.X, r.Y, r.Width, r.Height,
+            SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
 
     public static bool IsDockable(IntPtr hwnd)
     {

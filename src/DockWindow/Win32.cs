@@ -13,6 +13,8 @@ internal static class Win32
     public const long WS_CAPTION                 = 0x00C00000;
     public const long WS_EX_TOOLWINDOW           = 0x00000080;
     public const uint GW_OWNER                   = 4;
+    public const uint SWP_NOSIZE                 = 0x0001;
+    public const uint SWP_NOMOVE                 = 0x0002;
     public const uint SWP_NOZORDER               = 0x0004;
     public const uint SWP_NOACTIVATE             = 0x0010;
     public const uint SWP_ASYNCWINDOWPOS         = 0x4000;
@@ -112,15 +114,16 @@ internal static class Win32
         return true;
     }
 
-    public static readonly IntPtr HWND_TOP = IntPtr.Zero;
+    public static readonly IntPtr HWND_TOPMOST   = new(-1);
+    public static readonly IntPtr HWND_NOTOPMOST = new(-2);
 
     public static bool MoveWindowAsync(IntPtr hwnd, Rect r) =>
         SetWindowPos(hwnd, IntPtr.Zero, r.X, r.Y, r.Width, r.Height,
             SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
 
-    public static bool MoveWindowToTopAsync(IntPtr hwnd, Rect r) =>
-        SetWindowPos(hwnd, HWND_TOP, r.X, r.Y, r.Width, r.Height,
-            SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
+    public static bool SetTopmost(IntPtr hwnd, bool topmost) =>
+        SetWindowPos(hwnd, topmost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
 
     public static bool IsDockable(IntPtr hwnd)
     {

@@ -21,7 +21,6 @@ public sealed class DockedWindow : IDisposable
     private readonly System.Windows.Forms.Timer _anim;
     private Rect      _animFrom;
     private Rect      _animTo;
-    private bool      _animBringToTop;
     private DateTime  _animStart;
     private DateTime? _cursorLeftAt;
 
@@ -44,13 +43,15 @@ public sealed class DockedWindow : IDisposable
     public void StartHide()
     {
         State = DockState.Hidden;
-        AnimateTo(HiddenRect, bringToTop: false);
+        Win32.SetTopmost(Hwnd, false);
+        AnimateTo(HiddenRect);
     }
 
     public void StartPeek()
     {
         State = DockState.Peeking;
-        AnimateTo(OriginalRect, bringToTop: true);
+        Win32.SetTopmost(Hwnd, true);
+        AnimateTo(OriginalRect);
     }
 
     public void Tick(Point cursor)
@@ -92,21 +93,21 @@ public sealed class DockedWindow : IDisposable
     public void RestoreImmediate()
     {
         _anim.Stop();
-        Win32.MoveWindowToTopAsync(Hwnd, OriginalRect);
+        Win32.SetTopmost(Hwnd, false);
+        Win32.MoveWindowAsync(Hwnd, OriginalRect);
         State = DockState.Visible;
     }
 
-    private void AnimateTo(Rect to, bool bringToTop)
+    private void AnimateTo(Rect to)
     {
         if (!Win32.TryGetWindowRect(Hwnd, out var from))
         {
             Dead?.Invoke(this);
             return;
         }
-        _animFrom       = from;
-        _animTo         = to;
-        _animBringToTop = bringToTop;
-        _animStart      = DateTime.UtcNow;
+        _animFrom  = from;
+        _animTo    = to;
+        _animStart = DateTime.UtcNow;
         _anim.Start();
     }
 
@@ -122,10 +123,7 @@ public sealed class DockedWindow : IDisposable
         var t = (DateTime.UtcNow - _animStart).TotalMilliseconds / AnimDurationMs;
         if (t >= 1) { t = 1; _anim.Stop(); }
         var r = Animation.Lerp(_animFrom, _animTo, t);
-        if (_animBringToTop)
-            Win32.MoveWindowToTopAsync(Hwnd, r);
-        else
-            Win32.MoveWindowAsync(Hwnd, r);
+        Win32.MoveWindowAsync(Hwnd, r);
     }
 
     public void Dispose()

@@ -1,3 +1,5 @@
+using System.Windows.Forms;
+
 namespace DockWindow;
 
 internal static class Program
@@ -5,6 +7,7 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
-        // Replaced in Task 11.
+        ApplicationConfiguration.Initialize();
+        Application.Run(new TrayContext());
     }
 }

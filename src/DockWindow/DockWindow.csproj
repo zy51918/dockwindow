@@ -7,10 +7,14 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>DockWindow</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Resources\tray.ico</ApplicationIcon>
     <AssemblyName>DockWindow</AssemblyName>
     <LangVersion>12</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="DockWindow.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\tray.ico" />
   </ItemGroup>
 </Project>

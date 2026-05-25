@@ -40,11 +40,18 @@ internal sealed class TrayContext : ApplicationContext
 
         _icon = new NotifyIcon
         {
-            Icon             = SystemIcons.Application,
+            Icon             = LoadTrayIcon(),
             Text             = "DockWindow",
             ContextMenuStrip = menu,
             Visible          = true,
         };
+    }
+
+    private static Icon LoadTrayIcon()
+    {
+        var asm = typeof(TrayContext).Assembly;
+        using var stream = asm.GetManifestResourceStream("DockWindow.Resources.tray.ico");
+        return stream is null ? SystemIcons.Application : new Icon(stream);
     }
 
     protected override void Dispose(bool disposing)

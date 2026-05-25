@@ -130,5 +130,7 @@ public sealed class DockedWindow : IDisposable
     {
         _anim.Stop();
         _anim.Dispose();
+        if (Win32.IsWindow(Hwnd))
+            Win32.SetTopmost(Hwnd, false);
     }
 }

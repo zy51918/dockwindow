@@ -25,7 +25,7 @@ v1 故意 **不** 支持底部边缘（避免与任务栏冲突）。
 ## v1 的非目标
 
 - 不持久化状态。应用重启 = 干净的初始状态。
-- 没有按窗口配置 / 排除名单 UI，过滤规则写死在代码里。
+- 没有按窗口配置编辑 UI；程序规则通过 exe 同目录的 `dockwindow.json` 手工维护。
 - 不支持底部边缘。
 - 没有快捷键。
 - 没有安装程序，直接提供单个 `.exe`。
@@ -37,7 +37,7 @@ v1 故意 **不** 支持底部边缘（避免与任务栏冲突）。
   生成单个 `.exe`。
 - DPI 感知：在 `app.manifest` 中声明 `PerMonitorV2`。
 - 所有 Win32 调用通过 P/Invoke，没有第三方原生依赖。
-- 测试：使用 xUnit 覆盖纯几何 / 纯数学单元。
+- 测试：使用 xUnit 覆盖纯几何、纯数学和程序规则匹配单元。
 
 ## 架构
 
@@ -48,8 +48,10 @@ v1 故意 **不** 支持底部边缘（避免与任务栏冲突）。
 | `TrayContext` | `Main()` 入口、NotifyIcon、生命周期、启用开关 | `DockManager` |
 | `WindowEventHook` | 封装 `SetWinEventHook(EVENT_SYSTEM_MOVESIZEEND)`。在 UI 线程上抛出 `WindowMoved(IntPtr hwnd)` 事件。 | `Win32` |
 | `EdgeDetector` | **纯函数。** 给定窗口矩形 + 显示器工作区，返回 `Edge` 以及目标矩形（隐藏 / 探出）。 | — |
+| `DockRules` | **纯函数。** 按顺序解析和匹配 `enable` / `disable` 程序规则。首个匹配规则决定是否允许停靠。 | — |
+| `RulesConfig` | 从 exe 同目录的 `dockwindow.json` 加载规则；配置错误时使用默认放行策略。 | `DockRules`、`System.Text.Json` |
 | `DockedWindow` | 管理一个 HWND，拥有自己的滑动动画。方法：`StartHide()`、`StartPeek()`、`Tick(Point cursor)`。 | `Win32`、`EdgeDetector` |
-| `DockManager` | `DockedWindow` 的注册表。处理 MoveSizeEnd + 鼠标轮询事件。 | `WindowEventHook`、`MousePoller`、`EdgeDetector` |
+| `DockManager` | `DockedWindow` 的注册表。处理 MoveSizeEnd + 鼠标轮询事件。 | `WindowEventHook`、`MousePoller`、`EdgeDetector`、`DockRules`、`Win32` |
 | `MousePoller` | 50 ms 的 `WinForms.Timer`，发出 `Moved(Point)`。全应用单例。 | `Win32` |
 | `Win32` | P/Invoke 表面，不放业务逻辑。 | — |
 
@@ -57,6 +59,9 @@ v1 故意 **不** 支持底部边缘（避免与任务栏冲突）。
 
 ```
 WindowEventHook --MoveSizeEnd(hwnd)--> DockManager
+                                         |
+                                         v
+                         DockPolicy.IsAllowed(processName)
                                          |
                                          v
                                   EdgeDetector.Classify(rect, workArea)
@@ -147,6 +152,9 @@ enum DockState { Hidden, Peeking, Visible }
 - 样式 **不包含** `WS_EX_TOOLWINDOW`
 - 未被 DWM cloak（`DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, ...)` 返回 0）
 - 不是 shell 窗口（`GetShellWindow()`）
+- `DockPolicy.IsAllowed(进程可执行文件名)` 返回 true；规则按配置文件顺序从上到下做不区分大小写的前缀匹配，`all` 匹配全部程序
+
+配置缺失、无效或无有效规则时使用默认放行策略。配置重载后，已不再允许的停靠窗口会先恢复到原位，再从管理表移除。
 
 ### 多显示器
 
@@ -179,6 +187,9 @@ enum DockState { Hidden, Peeking, Visible }
 - `AnimationTests`
   - Ease-out cubic 单调递增；在 t = 1 时恰好到达终点。
   - 插值矩形：t = 0 等于起点，t = 1 等于终点。
+- `DockRulesTests`
+  - `enable` / `disable` 动作、程序名前缀和大小写不敏感匹配。
+  - `all` 通配、首个匹配优先级、默认放行和非法规则忽略。
 
 手动冒烟清单（在 README 中）：
 

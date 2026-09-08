@@ -18,7 +18,8 @@ internal sealed class TrayContext : ApplicationContext
 
         _hook    = new WindowEventHook(SynchronizationContext.Current!);
         _poller  = new MousePoller();
-        _manager = new DockManager(_hook, _poller);
+        var policy = RulesConfig.Load(RulesConfig.DefaultPath());
+        _manager = new DockManager(_hook, _poller, policy);
         _poller.Start();
 
         _enabledItem = new ToolStripMenuItem("Enabled")
@@ -34,6 +35,8 @@ internal sealed class TrayContext : ApplicationContext
 
         var menu = new ContextMenuStrip();
         menu.Items.Add(_enabledItem);
+        menu.Items.Add("Reload rules", null, (_, _) =>
+            _manager.ApplyPolicy(RulesConfig.Load(RulesConfig.DefaultPath())));
         menu.Items.Add("Restore all", null, (_, _) => _manager.RestoreAll());
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Quit", null, (_, _) => ExitThread());

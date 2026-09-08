@@ -15,7 +15,48 @@ dotnet build -c Release
 dotnet run --project src/DockWindow -c Release
 ```
 
-A tray icon appears. Right-click for **Enabled / Restore all / Quit**.
+A tray icon appears. Right-click for **Enabled / Reload rules / Restore all / Quit**.
+
+## Program rules
+
+Create `dockwindow.json` next to the executable to control which programs can be
+managed. The file contains an ordered list of rule commands:
+
+```json
+{
+  "rules": [
+    "enable notepad",
+    "disable all"
+  ]
+}
+```
+
+Rules are evaluated from top to bottom; the first matching rule wins. Matching
+uses the process executable name, is case-insensitive, and uses a prefix:
+`enable notepad` allows `notepad.exe` (and any executable whose name starts with
+`notepad`). `enable all` and `disable all` match every program.
+
+If the file is missing, invalid, or contains no valid rules, all otherwise
+eligible windows remain allowed, preserving the default behavior. A valid rule list
+can use a final `disable all` to create an allowlist, or a final `enable all` to
+create a denylist:
+
+Only Notepad is allowed:
+
+```json
+{ "rules": ["enable notepad", "disable all"] }
+```
+
+Notepad is denied, all other programs are allowed:
+
+```json
+{ "rules": ["disable notepad", "enable all"] }
+```
+
+After editing the file, choose **Reload rules** from the tray menu. Windows that
+become disallowed are restored before they are forgotten. A process name cannot
+be resolved when Windows denies access or the process exits; in that case the
+window is allowed so the feature does not change the default behavior.
 
 ## Usage
 
@@ -38,6 +79,9 @@ Bottom edge is not supported (taskbar).
 - [ ] Close a hidden window via Task Manager → DockWindow does not crash.
 - [ ] Multi-monitor: move docked window between monitors → re-hides on new monitor's edge.
 - [ ] Right-click tray → uncheck **Enabled** → all docked windows restored.
+- [ ] Add `"disable all"` to `dockwindow.json` → no new window docks.
+- [ ] Use `"enable notepad", "disable all"` → only Notepad docks.
+- [ ] Edit rules and choose **Reload rules** → changes apply and newly disallowed windows restore.
 - [ ] Right-click tray → **Quit** → all windows restored, process exits cleanly.
 
 ## Tests

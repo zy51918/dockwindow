@@ -1,0 +1,7 @@
+{
+  "rules": [
+    "enable notepad",
+    "enable scrcpy",
+    "disable all"
+  ]
+}

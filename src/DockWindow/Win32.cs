@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace DockWindow;
 
@@ -19,6 +20,7 @@ internal static class Win32
     public const uint SWP_NOACTIVATE             = 0x0010;
     public const uint SWP_ASYNCWINDOWPOS         = 0x4000;
     public const uint DWMWA_CLOAKED              = 14;
+    public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 
     public delegate void WinEventDelegate(
         IntPtr hWinEventHook, uint eventType,
@@ -70,6 +72,22 @@ internal static class Win32
 
     [DllImport("user32.dll")]
     public static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetWindowThreadProcessId(
+        IntPtr hWnd, out uint processId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenProcess(
+        uint desiredAccess, bool inheritHandle, uint processId);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool QueryFullProcessImageName(
+        IntPtr processHandle, uint flags, StringBuilder exeName, ref uint size);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CloseHandle(IntPtr handle);
 
     [DllImport("user32.dll")]
     public static extern IntPtr GetShellWindow();
@@ -124,6 +142,31 @@ internal static class Win32
     public static bool SetTopmost(IntPtr hwnd, bool topmost) =>
         SetWindowPos(hwnd, topmost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS);
+
+    public static bool TryGetProcessFileName(IntPtr hwnd, out string fileName)
+    {
+        fileName = string.Empty;
+        if (GetWindowThreadProcessId(hwnd, out var processId) == 0 || processId == 0)
+            return false;
+
+        var processHandle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, processId);
+        if (processHandle == IntPtr.Zero) return false;
+
+        try
+        {
+            var path = new StringBuilder(32768);
+            var size = (uint)path.Capacity;
+            if (!QueryFullProcessImageName(processHandle, 0, path, ref size))
+                return false;
+
+            fileName = Path.GetFileName(path.ToString());
+            return fileName.Length != 0;
+        }
+        finally
+        {
+            CloseHandle(processHandle);
+        }
+    }
 
     public static bool IsDockable(IntPtr hwnd)
     {

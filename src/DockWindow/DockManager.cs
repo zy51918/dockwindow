@@ -7,13 +7,15 @@ public sealed class DockManager : IDisposable
     private readonly Dictionary<IntPtr, DockedWindow> _docked = new();
     private readonly WindowEventHook _hook;
     private readonly MousePoller     _poller;
+    private DockPolicy _policy;
 
     public bool Enabled { get; set; } = true;
 
-    public DockManager(WindowEventHook hook, MousePoller poller)
+    public DockManager(WindowEventHook hook, MousePoller poller, DockPolicy policy)
     {
         _hook   = hook;
         _poller = poller;
+        _policy = policy;
         _hook.WindowMoved += OnWindowMoved;
         _poller.Moved     += OnMouseMoved;
     }
@@ -27,6 +29,18 @@ public sealed class DockManager : IDisposable
         if (!Win32.IsDockable(hwnd))
         {
             if (isKnown) Remove(hwnd);
+            return;
+        }
+
+        if (_policy.HasRules &&
+            Win32.TryGetProcessFileName(hwnd, out var processName) &&
+            !_policy.IsAllowed(processName))
+        {
+            if (isKnown)
+            {
+                _docked[hwnd].RestoreImmediate();
+                Remove(hwnd);
+            }
             return;
         }
 
@@ -76,6 +90,21 @@ public sealed class DockManager : IDisposable
     {
         if (_docked.Remove(hwnd, out var dw))
             dw.Dispose();
+    }
+
+    public void ApplyPolicy(DockPolicy policy)
+    {
+        _policy = policy;
+        foreach (var dw in _docked.Values.ToList())
+        {
+            if (!policy.HasRules ||
+                !Win32.TryGetProcessFileName(dw.Hwnd, out var processName) ||
+                policy.IsAllowed(processName))
+                continue;
+
+            dw.RestoreImmediate();
+            Remove(dw.Hwnd);
+        }
     }
 
     public void RestoreAll()
